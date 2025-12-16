@@ -72,15 +72,18 @@ def creer_ruche(plateau):
     return ruches
 
     
+
 def creer_fleurs(NFLEURS=4):
     """
     Crée des fleurs avec leur nectar et position (initialement None)
+    Le nectar est attribué entre 1 et MAX_NECTAR.
     """
     fleurs = []
     for i in range(NFLEURS):
+        nectar = random.randint(1, MAX_NECTAR)
         fleurs.append({
             "id": f"fleur{i}",
-            "nectar": 10,
+            "nectar": nectar,
             "position": None
         })
     return fleurs
@@ -88,26 +91,35 @@ def creer_fleurs(NFLEURS=4):
 
 def placer_fleurs(plateau, fleurs):
     """
-    Place les fleurs aléatoirement sur le plateau en respectant les zones protégées (5x5) aux coins
+    Place les fleurs symétriquement sur le plateau en respectant les zones protégées (5x5) aux coins
+    et l'unicité des fleurs.
     """
     N = len(plateau)
-    zone_protegee = 5
+    zone_protegee = 4  # On laisse un espace de 4x4 autour des coins pour les ruches
 
-    # # créer la liste des cases autorisées
-    # cases_autorisees = [
-    #     (x, y)
-    #     for x in range(N)
-    #     for y in range(N)
-    #     if not ((x < zone_protegee and y < zone_protegee) or
-    #             (x < zone_protegee and y >= N-zone_protegee) or
-    #             (x >= N-zone_protegee and y < zone_protegee) or
-    #             (x >= N-zone_protegee and y >= N-zone_protegee))
-    # ]
+    # créer la liste des cases autorisées
+    cases_autorisees = [
+        (x, y)
+        for x in range(zone_protegee, N-zone_protegee)  # Exclure les bords et zones protégées
+        for y in range(zone_protegee, N-zone_protegee)
+    ]
 
-    # for fleur in fleurs:
-    #     pos = random.choice(cases_autorisees)
-    #     fleur["position"] = pos
-    #     plateau[pos[0]][pos[1]].append(fleur)
+    # Mélanger les cases autorisées pour distribuer aléatoirement les fleurs
+    random.shuffle(cases_autorisees)
+
+    # Placer les fleurs de manière symétrique
+    for i, fleur in enumerate(fleurs):
+        # Choisir une position dans les cases autorisées
+        x, y = cases_autorisees[i]
+
+        # Placer la fleur à sa position et ses symétriques
+        fleur["position"] = (x, y)
+        plateau[x][y].append(fleur)
+        
+        # Placer les symétriques
+        plateau[NCASES-1-x][y].append(fleur)
+        plateau[x][NCASES-1-y].append(fleur)
+        plateau[NCASES-1-x][NCASES-1-y].append(fleur)
 
 
 def creer_abeille(type_abeille, position, camp):
@@ -192,3 +204,4 @@ def startgame():
 
 
 startgame() #Lancement du jeu
+
