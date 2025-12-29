@@ -3,8 +3,6 @@ from model import *
 
 
 
-
-
 def dessiner_zones_protegees(canvas, taille_case, width, height):
     zone_size = 4 * taille_case
     
@@ -73,10 +71,6 @@ def dessiner_plateau(canvas, plateau, taille_case, image_ruche, image_fleur, ima
                         dessiner_fleur(canvas, x, y, taille_case, image_fleur)
                     elif element["type"] == "abeille":
                         dessiner_abeille(canvas, x, y, taille_case, image_abeille)
-
-
-
-
 
 
                     
