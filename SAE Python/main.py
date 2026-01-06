@@ -1,66 +1,65 @@
+#main.py comporte tout ce qui concerne l'affichage
 from tkinter import *
 from model import *
 
-
-
 def dessiner_zones_protegees(canvas, taille_case, width, height):
+    """  
+    Permet de dessiner les zones protégées sur le plateau avec leur couleur
+    """
     zone_size = 4 * taille_case
-    
-    # Coin haut-gauche
-    canvas.create_rectangle(0, 0, zone_size, zone_size, fill="lightblue", outline="")
-    
-    # Coin haut-droite
+    #zone haut gauche 
+    canvas.create_rectangle(0,0, zone_size, zone_size, fill="lightblue", outline="")
+    #zone haut droite
     canvas.create_rectangle(width - zone_size, 0, width, zone_size, fill="#FF5967", outline="")
-    
-    # Coin bas-gauche
+    #zone bas gauche
     canvas.create_rectangle(0, height - zone_size, zone_size, height, fill="lightgreen", outline="")
-    
-    # Coin bas-droite
+    #zone bas droite
     canvas.create_rectangle(width - zone_size, height - zone_size, width, height, fill="yellow", outline="")
 
-
-
 def dessiner_quadrillage(canvas, width, height, taille_case):
-    """Dessiner le quadrillage"""
-    for i in range(NCASES + 1): #+1 car on a besoin de (NCASES + 1) ligne pour NCASES de case
-
+    """  
+    Dessiner le quadrillage sur le plateau
+    """
+    for i in range(NCASES + 1): # +1 car il en faut +1 de "|" pour une case 
         canvas.create_line(0, i*taille_case, width, i*taille_case, fill="black")
-        canvas.create_line(i*taille_case, 0, i*taille_case, height,fill="black")
-
-
+        canvas.create_line(i*taille_case, 0, i*taille_case, height, fill="black")
 
 def dessiner_ruche(canvas, x, y, taille_case, image):
-    #Calculer le centre de la case (x, y)
+    """  
+    Permet de placer la ruche sur sa case bien centré
+    """
+    #CALCUL du centre pixel (tkinter)
     centre_x = y * taille_case + taille_case // 2
     centre_y = x * taille_case + taille_case // 2
-    
     #Placer l'image au centre
     canvas.create_image(centre_x, centre_y, image=image)
 
-
-
 def dessiner_fleur(canvas, x, y, taille_case, image):
+    """  
+    Pareil que dessiner ruche mais pour les fleurs
+    """
     centre_x = y * taille_case + taille_case // 2
     centre_y = x * taille_case + taille_case // 2
     canvas.create_image(centre_x,centre_y, image=image)
-
 
 def dessiner_abeille(canvas,x,y,taille_case,image):
+    """  
+    Pareil que dessiner fleur mais pour les abeilles
+    """
     centre_x = y * taille_case + taille_case // 2
     centre_y = x * taille_case + taille_case // 2
     canvas.create_image(centre_x,centre_y, image=image)
-
 
 def dessiner_plateau(canvas, plateau, taille_case, image_ruche, image_fleur, image_abeille):
     """
     Parcourt le plateau et dessine chaque élément
     """
     
-    for x in range(NCASES):
-        for y in range(NCASES):
+    for x in range(NCASES): #ligne
+        for y in range(NCASES): #colonne
             case = plateau[x][y]  # Liste d'éléments
             
-            # Parcourir tous les éléments de la case
+            # Parcourir tous les éléments dans LA CASE
             for element in case:
                 if type(element) is dict: #Vérifier si c'est une liste ou un dict direct
                     if element["type"] == "ruche":
@@ -70,45 +69,42 @@ def dessiner_plateau(canvas, plateau, taille_case, image_ruche, image_fleur, ima
                     elif element["type"] == "abeille":
                         dessiner_abeille(canvas, x, y, taille_case, image_abeille)
 
-
-def afficher_plateau_anime(plateau, ruches, tour_actuel):
-    fenetre = Tk()
-    fenetre.title("BZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ 🐝")
-    fenetre.geometry("1270x890")
-    fenetre.minsize(1270, 890)
-    fenetre.maxsize(1270, 890)
-    
-    
-    #charger images
-    image_ruche = PhotoImage(file="image/ruche.png").subsample(10, 10)
-    image_fleur = PhotoImage(file="image/fleur.png").subsample(10, 10)
-    image_abeille = PhotoImage(file="image/abeille.png").subsample(10, 10)
-    
+def afficher_plateau(plateau, ruches, tour_actuel):
+    """  
+    Création de la fenêtre avec TOUT
+    """
+    fenetre = Tk() 
+    fenetre.title("BZZZZZZzZzZ") #titre de la fenêtre
+    fenetre.geometry("1270x890")   # taille initiale
+    fenetre.resizable(False, False)  # désactive agrandissement horizontal et vertical
+    #Chargement des images :
+    image_ruche = PhotoImage(file="image/ruche.png").subsample(10,10)
+    image_fleur = PhotoImage(file="image/fleur.png").subsample(10,10)
+    image_abeille = PhotoImage(file="image/abeille.png").subsample(10,10)
+    #Dimension
     width = 700
-    height = width
-    taille_case = width / NCASES
-    
-    #variables
-    joueur_actuel = 0
-    phase = "ponte"
-    abeille_cliquee = None
+    height = width #carré
+    taille_case = width / NCASES #nombre de pixel 
+    #Variable
+    joueur_actuel = 0 #savoir qui joue
+    phase = "ponte" #savoir à quel phase nous sommes
+    abeille_cliquee = None #savoir qui est selectionné
     POSITIONS_RUCHES = {0: (0,0), 
                         1: (0,15), 
                         2: (15,0), 
                         3: (15,15)}
-
-    #interface
+    #Interface
     label_tour = Label(fenetre, text="", font=("Arial", 16))
     label_tour.grid(row=0, column=0, columnspan=3, sticky="ew")
-    
+
     label_phase = Label(fenetre, text="", font=("Arial", 12, "bold"), bg="#FF54D0", fg="white", pady=5)
     label_phase.grid(row=1, column=0, columnspan=3, sticky="ew")
     
-    # Plateau au centre
+    #plateau centré
     canvas = Canvas(fenetre, width=width, height=height, bg="green")
     canvas.grid(row=2, column=1, padx=10, pady=10)
     
-    # Infos ruches gauche (ruches du côté gauche du plateau)
+    #Info ruches gauches
     frame_gauche = Frame(fenetre, width=250)
     frame_gauche.grid(row=2, column=0, sticky="ns", padx=10)
 
@@ -137,84 +133,146 @@ def afficher_plateau_anime(plateau, ruches, tour_actuel):
     label_ruche3.pack(pady=15, padx=5, fill="both", expand=True)
 
     labels_ruches = [label_ruche0, label_ruche1, label_ruche2, label_ruche3]
-    
-    # Frame pour boutons et messages
+
+    #Frame pour boutons et message
     frame_bas = Frame(fenetre)
     frame_bas.grid(row=3, column=0, columnspan=3, pady=10)
-    
     label_message = Label(frame_bas, text="", font=("Arial", 10), fg="red")
     label_gagnant = Label(fenetre, text="", font=("Arial", 16), fg="green")
     label_gagnant.grid(row=4, column=0, columnspan=3)
-    
-    # ===== FONCTIONS LOCALES =====
-    
+    #== FONCTIONS LOCALES ==
     def message(texte, couleur="red"):
+        """  
+        On donne un texte et sa couleur et ça converti en texte 
+        qu'on peut voir sur le jeu
+        """
         label_message.config(text=texte, fg=couleur)
         fenetre.after(2000, lambda: label_message.config(text=""))
-    
-    def pondre(type_abeille):
-        ruche = ruches[joueur_actuel]
-        pos = POSITIONS_RUCHES[joueur_actuel]
-        
-        abeille, erreur = tenter_ponte(plateau, ruche, type_abeille, pos) #abeille est inutile ici
-        if erreur:
-            message(erreur)
-            return
-        
-        message(f"{type_abeille} pondue !", "green")
-        redessiner()
-    
-    def executer_escarmouche():
-        nonlocal joueur_actuel, phase, tour_actuel
-        
-        phase_escarmouche(plateau, ruches[joueur_actuel])
-        
-        joueur_actuel = (joueur_actuel + 1) % 4
-        
-        if joueur_actuel == 0:
-            tour_actuel += 1
-            nouveau_tour(ruches)
-        
-        phase = "ponte"
-        
-        if tour_actuel >= TIME_OUT:
-            gagnant = determiner_gagnant(ruches)
-            label_gagnant.config(text=f"🏆 {gagnant['id']} GAGNE avec {gagnant['nectar']} nectar ! 🏆")
-            return
-        
-        redessiner()
-    
+
     def passer_phase():
+        """  
+        Permet de passer à la phase suivante
+        """
         nonlocal joueur_actuel, phase, tour_actuel, abeille_cliquee
-        
         abeille_cliquee = None
-        
         if phase == "ponte":
             phase = "mouvement"
-            if not any(a["etat"] == "OK" for a in ruches[joueur_actuel]["abeilles"]):
+            #vérifier s'il existe au moins une abeille OK
+            a_une_abeille = False
+            for abeille in ruches[joueur_actuel]["abeilles"]:
+                if abeille["etat"] == "OK":
+                    a_une_abeille = True
+                    break
+            if a_une_abeille == False:
                 passer_phase()
                 return
         
         elif phase == "mouvement":
             phase = "butinage"
-            if not any(not a["a_bouge"] and a["etat"] == "OK" for a in ruches[joueur_actuel]["abeilles"]):
+            #vérifier s'il existe une abeille OK qui n'a pas bougé
+            a_une_abeille_dispo = False
+            for abeille in ruches[joueur_actuel]["abeilles"]:
+                if abeille["etat"] == "OK" and abeille["a_bouge"] == False:
+                    a_une_abeille_dispo = True
+                    break
+            if a_une_abeille_dispo == False:
                 passer_phase()
                 return
-        
+            
         elif phase == "butinage":
             phase = "escarmouche"
             redessiner()
-            fenetre.after(500, executer_escarmouche)
+            fenetre.after(500, executer_escarmouche) #fait attendre 0.5s
             return
-        
         redessiner()
-    
+
+    def executer_escarmouche():
+        """  
+        Cette fonction termine le tour d'un joueur, passe au suivant,
+        gère le changement de tour, vérifie la victoire puis relance la phase de ponte
+        """
+        nonlocal joueur_actuel, phase, tour_actuel
+        phase_escarmouche(plateau, ruches[joueur_actuel])
+        joueur_actuel = (joueur_actuel + 1)%4 #modulo pour garder 0,1,2,3
+
+        if joueur_actuel == 0: #nouveau tour (joueur 0)
+            tour_actuel += 1
+            nouveau_tour(ruches)
+        phase = "ponte"
+        if tour_actuel >= TIME_OUT:
+            gagnant = determiner_gagnant(ruches)
+            label_gagnant.config(text=f" GG {gagnant["id"]} ! Il possède {gagnant['nectar']} nectar !")
+            return
+        redessiner()
+    def pondre(type_abeille):
+        """  
+        Utilise la fonction tenter_pondre pour l'appliquer au plateau
+        """
+        ruche = ruches[joueur_actuel]
+        pos = POSITIONS_RUCHES[joueur_actuel]
+        _, erreur = tenter_ponte(plateau, ruche, type_abeille, pos) #"_" est inutile, on veut savoir si ya erreur c tout 
+        if erreur:
+            message(erreur)
+            return
+        else:
+            message(f"{type_abeille} viens de rejoindre cette guerre !", "green")
+            redessiner()
+
+    def clic_plateau(event): 
+        """  
+        Event = position de notre click
+        Cette fonction permet de gérer tout ce qui parle de l'interaction "click"
+        """
+        nonlocal abeille_cliquee #on reprend ce qu'on a stocké DANS la fonction
+        #plateau[ligne(event.y)][colonne(event.x)]
+        x = int(event.y / taille_case) #colonne pas en float
+        y = int(event.x / taille_case) #ligne pas en float (d'où le int())
+        if x < 0 or x >= NCASES or y < 0 or y >= NCASES: #Si c'est en dehors du plateau
+            return
+        ruche = ruches[joueur_actuel]
+        case = plateau[x][y]
+        #Les phases peuvent être : ponte, mouvement ou butinage
+        if phase == "mouvement":
+            if abeille_cliquee == None: #Si on a pas encore sélectionner d'abeille à bouger
+                for element in case: #on parle bien de la case que nous avons "cliqué"
+                    if (isinstance(element,dict) and element.get("type") == "abeille" and #isinstance et .get pour sécurité crash
+                        element["camp"] == ruche["id"] and element["etat"] == "OK" and 
+                        element["a_bouge"] == False):
+                        abeille_cliquee = element
+                        message("Vous avez sélectionné cette abeille ! Cliquez où aller !", "blue")
+                        redessiner()
+                        return
+            else:
+                succes, erreur = tenter_deplacement(plateau, abeille_cliquee, (x,y))
+                if erreur:
+                    message(erreur)
+                    return
+                message("C'est bon il a bougé !", "green")
+                abeille_cliquee = None #reset
+                redessiner()
+        elif phase == "butinage":
+            for element in case:
+                if (isinstance(element,dict) and element.get("type") == "abeille" and
+                    element["camp"] == ruche["id"] and element["etat"] == "OK" and
+                    element["a_bouge"] == False):
+                    succes, resultat = tenter_butinage(plateau, element, ruche)
+                    if succes == False:
+                        message(resultat)
+                        return
+                    else:
+                        message(f"Butinèx ! +{resultat}", "green")
+                        redessiner()
+                        return
+
     def redessiner():
+        """  
+        Permet de faire animé le plateau
+        On supprime tout et on remet avec l'update :)
+        """
         canvas.delete("all")
         dessiner_zones_protegees(canvas, taille_case, width, height)
         dessiner_quadrillage(canvas, width, height, taille_case)
         dessiner_plateau(canvas, plateau, taille_case, image_ruche, image_fleur, image_abeille)
-        
         if abeille_cliquee:
             x, y = abeille_cliquee["position"]
             cx = y * taille_case + taille_case / 2
@@ -268,58 +326,12 @@ def afficher_plateau_anime(plateau, ruches, tour_actuel):
                         (int(ruche["id"][-1])+1), ruche["nectar"], nb_actives, nb_ko
                     ),
                     font=("Arial", 11, "bold"), fg='#000000')
-    
-    def clic_plateau(event):
-        nonlocal abeille_cliquee
-        
-        x = int(event.y / taille_case)
-        y = int(event.x / taille_case)
-        if x < 0 or x >= NCASES or y < 0 or y >= NCASES:
-            return
-        
-        ruche = ruches[joueur_actuel]
-        case = plateau[x][y]
-        
-        if phase == "mouvement":
-            if abeille_cliquee is None:
-                for elem in case:
-                    if (isinstance(elem, dict) and elem.get("type") == "abeille" and 
-                        elem["camp"] == ruche["id"] and elem["etat"] == "OK" and
-                        not elem["a_bouge"]): 
-                        abeille_cliquee = elem
-                        message("Abeille sélectionnée ! Cliquez où aller", "blue")
-                        redessiner()
-                        return
-            else:
-                succes, erreur = tenter_deplacement(plateau, abeille_cliquee, (x, y))
-                if erreur:
-                    message(erreur)
-                    return
-                
-                message("Déplacée !", "green")
-                abeille_cliquee = None
-                redessiner()
-        
-        elif phase == "butinage":
-            for elem in case:
-                if (isinstance(elem, dict) and elem.get("type") == "abeille" and 
-                    elem["camp"] == ruche["id"] and elem["etat"] == "OK" and not elem["a_bouge"]):
-                    
-                    succes, resultat = tenter_butinage(plateau, elem, ruche)
-                    if not succes:
-                        message(resultat)
-                        return
-                    
-                    message(f"Butiné ! +{resultat}", "green")
-                    redessiner()
-                    return
-    
-    # Créer les boutons
-    btn_ouvriere = Button(frame_bas, text=" Pondre Ouvrière (5 nectars) ", font=("Arial", 10, "bold"), 
-                         bg="#2F1559", fg="white", command=lambda: pondre("ouvriere"))
-    btn_eclaireuse = Button(frame_bas, text=" Pondre Éclaireuse (5 nectars) ", font=("Arial", 10, "bold"), 
-                           bg="#2F1559", fg="white", command=lambda: pondre("eclaireuse"))
-    btn_bourdon = Button(frame_bas, text=" Pondre Bourdon (5 nectars) ", font=("Arial", 10, "bold"), 
+    #Créer les boutons !
+    btn_ouvriere = Button(frame_bas, text=" Pondre Ouvrière ! (5 nectars) ", font=("Arial", 10, "bold"),
+                          bg="#3F00A5", fg="white", command=lambda: pondre("ouvriere"))
+    btn_eclaireuse = Button(frame_bas, text=" Pondre Éclaireuse ! (5 nectars) ", font=("Arial", 10,"bold" ),
+                            bg="#2F1559", fg="white", command=lambda: pondre("eclaireuse"))
+    btn_bourdon = Button(frame_bas, text=" Pondre Bourdon ! (5 nectars) ", font=("Arial", 10, "bold"), 
                         bg="#2F1559", fg="white", command=lambda: pondre("bourdon"))
     btn_passer = Button(frame_bas, text="   PASSER   ", font=("Arial", 12, "bold"), 
                        bg="#000000", fg="white", command=passer_phase)
@@ -330,13 +342,16 @@ def afficher_plateau_anime(plateau, ruches, tour_actuel):
 
 
 def lancer_partie():
-    print("Lancement du jeu...")
+    """  
+    Fonction pour lancer le jeu avec tous les settings par défaut
+    """
+    print("Lancement du jeu...") #Message d'alerte 
     plateau = creer_plateau()
     ruches = creer_ruche(plateau)
     fleurs = creer_fleurs(NFLEURS)
     placer_fleurs(plateau, fleurs)
     
-    afficher_plateau_anime(plateau, ruches, 1)
+    afficher_plateau(plateau, ruches, 1)
 
 
 if __name__ == "__main__":
