@@ -35,6 +35,7 @@ def creer_plateau():
         for _ in range(NCASES):
             ligne.append([])
         plateau.append(ligne)
+    return plateau
 
 def creer_ruche(plateau):
     """
@@ -45,25 +46,25 @@ def creer_ruche(plateau):
         "type": "ruche",
         "id": "ruche0",
         "nectar": NECTAR_INITIAL,
-        "abeille": []
+        "abeilles": []
     }
     ruche1 = {
         "type": "ruche",
         "id": "ruche1",
         "nectar": NECTAR_INITIAL,
-        "abeille": []
+        "abeilles": []
     }
     ruche2 = {
         "type": "ruche",
         "id": "ruche2",
         "nectar": NECTAR_INITIAL,
-        "abeille": []
+        "abeilles": []
     }
     ruche3 = {
         "type": "ruche",
         "id": "ruche3",
         "nectar": NECTAR_INITIAL,
-        "abeille": []
+        "abeilles": []
     }
     #placer les ruches
     plateau[0][0].append(ruche0)
@@ -150,9 +151,11 @@ def creer_abeille(type_abeille, position, camp):
         "role": type_abeille,
         "camp": camp,
         "position": position,
+        "nectar": 0,
         "etat": "OK",
-        "a_bouger": False,
+        "a_bouge": False,
         "tours_ko_restants": 0
+
     }
     return abeille
 
@@ -210,7 +213,7 @@ def tenter_ponte(plateau, ruche, type_abeille, position):
     #sinon, créer l'abeille et la placer
     ruche["nectar"] -= COUT_PONTE
     abeille = creer_abeille(type_abeille, position, ruche["id"])
-    ruche["abeille"].append(abeille)
+    ruche["abeilles"].append(abeille)
     placer_abeille(plateau, abeille)
     
     return abeille, None
@@ -369,7 +372,7 @@ def phase_escarmouche(plateau, ruche):
     """
     resultats = [] #list des resultats de chaque abeille
     
-    for abeille in ruche["abeille"]:
+    for abeille in ruche["abeilles"]:
         if abeille["etat"] != "OK": #si l'abeille est mort
             continue
 
@@ -404,7 +407,7 @@ def nouveau_tour(ruches):
     Réinitialise les abeilles pour un nouveau tour
     """
     for ruche in ruches:#chaque ruche
-        for abeille in ruche["abeille"]:#chaque abeille des ruches
+        for abeille in ruche["abeilles"]:#chaque abeille des ruches
             abeille["a_bouge"] = False #reset du a_bouge
             if abeille["etat"] == "KO":
                 abeille["tours_ko_restants"] -= 1
@@ -439,7 +442,7 @@ def fin_de_partie(ruches, tour):
 #     fleurs = creer_fleurs(NFLEURS)
 #     placer_fleurs(plateau, fleurs)
     
-#     # Plus de code de test ici !
+#    
     
 #     # Jouer les tours
 #     for tour in range(1, TIME_OUT + 1):
