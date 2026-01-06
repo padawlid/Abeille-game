@@ -182,7 +182,7 @@ def afficher_plateau(plateau, ruches, tour_actuel):
         elif phase == "butinage":
             phase = "escarmouche"
             redessiner()
-            fenetre.after(500, executer_escarmouche) #fait attendre 0.5s
+            executer_escarmouche()
             return
         redessiner()
 
