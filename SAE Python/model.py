@@ -151,6 +151,7 @@ def creer_abeille(type_abeille, position, camp):
         "role": type_abeille,
         "camp": camp,
         "position": position,
+        "direction": "droite",
         "nectar": 0,
         "etat": "OK",
         "a_bouge": False,
@@ -176,13 +177,6 @@ def case_libre_abeille(plateau, x,y):
             return False
     return True
 
-def distance_valide(pos1, pos2, distance_max=1): #(à voir pour debug de l'éclaireuse qui bouge sur 8 directions) maybe un max(..) <= distmax
-    """  
-    Vérifie si la distance entre deux positions est valide
-    """
-    x1, y1 = pos1 #position 1(x,y)
-    x2, y2 = pos2 #position 2(x,y), si la différence est + de 1 c pas bon.
-    return max(abs(x2 - x1), abs(y2 - y1)) <= distance_max  #Distance de Chebyshev #return True or False et regarde si c'est bien 1 case de bouger
 def distance_valide(pos1, pos2, distance_max=1, diagonale_autorisee=True):
     """  
     Vérifie si la distance entre deux positions est valide
@@ -198,6 +192,7 @@ def distance_valide(pos1, pos2, distance_max=1, diagonale_autorisee=True):
     else:
         # Distance de Manhattan (4 directions)
         return abs(x2 - x1) + abs(y2 - y1) <= distance_max
+    
 def dans_zone_ruche(position, joueur):
     """  
     Vérifie si la position est dans la ruche du joueur
@@ -212,28 +207,59 @@ def dans_zone_ruche(position, joueur):
     elif joueur == 3:
         return x >= 12 and y >= 12
     
-def tenter_deplacement(plateau, abeille, nouvelle_position):
+def tenter_ponte(plateau, ruche, type_abeille, position):
+    """ 
+    Tente de pondre une abeille dans une ruche sur le plateau
+    Renvoie (abeille, None) si succès, (None, message d'erreur) sinon
+    """
+    #Vérifier si on a assez de nectar
+    if ruche["nectar"] < COUT_PONTE:
+        return None, f"Pas assez de nectar ! ({ruche["nectar"]}/{COUT_PONTE})"
+    x,y = position
+    #vérifier si la case est libre
+    if case_libre_abeille(plateau, x,y) == False:
+        return None, "Case occupée !"
+    #sinon, créer l'abeille et la placer
+    ruche["nectar"] -= COUT_PONTE
+    abeille = creer_abeille(type_abeille, position, ruche["id"])
+    ruche["abeilles"].append(abeille)
+    placer_abeille(plateau, abeille)
+    
+    return abeille, None
+
+def tenter_deplacement(plateau, abeille, nouvelle_position, ruches):
     """  
     Tente de déplacer l'abeille
     Renvoie (True, None) si succès, (False, message d'erreur) sinon
     """
     x_old, y_old = abeille["position"]
     x_new, y_new = nouvelle_position
-    
+
     # L'éclaireuse peut aller en diagonale, les autres non
     diagonale_ok = (abeille["role"] == "eclaireuse")
-    
+
+    # Vérifier distance
     if not distance_valide((x_old, y_old), (x_new, y_new), distance_max=1, diagonale_autorisee=diagonale_ok):
         return False, "Oula tu vas où là ? C'est trop loin !"
-    
+
+    # Vérifier case libre
     if not case_libre_abeille(plateau, x_new, y_new):
         return False, "Mhh.. y'a déjà quelqu'un sur la case"
-    
+
+    # Vérifier zones ennemies et dépôt nectar dans sa ruche
+    joueur = int(abeille["camp"][-1])
+    for i in range(4):
+        if i != joueur and dans_zone_ruche(nouvelle_position, i):
+            return False, "T'es un espion ? On est chez l'ennemie !"
+
+    # Déplacer l'abeille
     plateau[x_old][y_old].remove(abeille)
     abeille["position"] = (x_new, y_new)
     abeille["a_bouge"] = True
     plateau[x_new][y_new].append(abeille)
-    
+    if dans_zone_ruche(nouvelle_position, joueur):
+        deposer_nectar(abeille, ruches[joueur])
+
     return True, None
 
 #====== BUTINAGE ======
@@ -286,8 +312,7 @@ def deposer_nectar(abeille, ruche):
     """  
     Dépose le nectar de l'abeille dans sa ruche si elle y est
     """
-    if abeille["camp"] != ruche["id"]:
-        return
+
     x,y = abeille["position"]
     joueur = int(ruche["id"][-1]) #prend le dernier caractère du dictionnaire ruche{i}
     if dans_zone_ruche((x,y), joueur) == True:
@@ -313,25 +338,6 @@ def tenter_butinage(plateau, abeille, ruche):
     
     return True, pris
 
-def tenter_ponte(plateau, ruche, type_abeille, position):
-    """ 
-    Tente de pondre une abeille dans une ruche sur le plateau
-    Renvoie (abeille, None) si succès, (None, message d'erreur) sinon
-    """
-    #Vérifier si on a assez de nectar
-    if ruche["nectar"] < COUT_PONTE:
-        return None, f"Pas assez de nectar ! ({ruche["nectar"]}/{COUT_PONTE})"
-    x,y = position
-    #vérifier si la case est libre
-    if case_libre_abeille(plateau, x,y) == False:
-        return None, "Case occupée !"
-    #sinon, créer l'abeille et la placer
-    ruche["nectar"] -= COUT_PONTE
-    abeille = creer_abeille(type_abeille, position, ruche["id"])
-    ruche["abeilles"].append(abeille)
-    placer_abeille(plateau, abeille)
-    
-    return abeille, None
 #=== ESCARMOUCHE ===
 
 def trouver_opposantes(plateau, abeille):
@@ -343,7 +349,7 @@ def trouver_opposantes(plateau, abeille):
 
     for dx in [-1, 0, 1]:
         for dy in [-1, 0, 1]: #les 8 directions
-            if dx == 0 and dy == 0:#car c'est elle même mdr
+            if dx == 0 and dy == 0:#car c'est elle même 
                 continue
             nx, ny = x + dx, y + dy #vrai position
             if 0 <= nx < NCASES and 0 <= ny < NCASES:#limiter sorti plateau
@@ -444,31 +450,68 @@ def determiner_gagnant(ruches):
             gagnant = ruche #changement
     return gagnant
 
-def fin_de_partie(ruches, tour):
+def fin_de_partie(plateau, ruches, tour, nectar_total_initial):
     """
-    Vérifie si la partie est terminée.
-    Retourne (True, gagnant) si fini, (False, None) sinon
+    Vérifie si la partie est terminée selon les 3 conditions des règles.
+    Retourne (True, gagnant, raison) si fini, (False, None, None) sinon
+    
+    Conditions de fin :
+    1. Plus de nectar disponible sur les fleurs et abeilles
+    2. Un joueur a strictement plus de la moitié du nectar initial (blitzkrieg)
+    3. Nombre de tours >= TIME_OUT
     """
+    # Condition 3 : Timeout
     if tour >= TIME_OUT:
         gagnant = determiner_gagnant(ruches)
-        return True, gagnant
-    return False, None
-
-# console si jamais vérifier
-
-# def lancer_partie():
-#     plateau = creer_plateau()
-#     ruches = creer_ruche(plateau)
-#     fleurs = creer_fleurs(NFLEURS)
-#     placer_fleurs(plateau, fleurs)
+        return True, gagnant, "timeout"
     
-#    
+    # Condition 2 : Victoire blitzkrieg (plus de la moitié du nectar total)
+    seuil_blitz = nectar_total_initial / 2
+    for ruche in ruches:
+        if ruche["nectar"] > seuil_blitz:
+            return True, ruche, "blitzkrieg"
     
-#     # Jouer les tours
-#     for tour in range(1, TIME_OUT + 1):
-#         tour_jeu(plateau, ruches, tour)
-        
-#         if fin_de_partie(ruches, tour):
-#             break
-# if __name__ == "__main__":
-#     lancer_partie()
+    # Condition 1 : Plus de nectar disponible
+    nectar_restant = calculer_nectar_disponible(plateau, ruches)
+    if nectar_restant == 0:
+        gagnant = determiner_gagnant(ruches)
+        return True, gagnant, "epuisement"
+    
+    return False, None, None
+
+def calculer_nectar_disponible(plateau, ruches):
+    """
+    Calcule le nectar total encore disponible (fleurs + abeilles, pas les ruches)
+    """
+    nectar_total = 0
+    
+    #nectar sur les fleurs
+    for x in range(NCASES):
+        for y in range(NCASES):
+            for elem in plateau[x][y]:
+                if isinstance(elem, dict) and elem.get("type") == "fleur":
+                    nectar_total += elem["nectar"]
+    
+    #nectar sur les abeilles
+    for ruche in ruches:
+        for abeille in ruche["abeilles"]:
+            nectar_total += abeille["nectar"]
+    
+    return nectar_total
+
+def calculer_nectar_total_initial(plateau):
+    """
+    Calcule le nectar total au début de la partie (uniquement les fleurs)
+    À appeler juste après placer_fleurs()
+    """
+    nectar_total = 0
+    for x in range(NCASES):
+        for y in range(NCASES):
+            for elem in plateau[x][y]:
+                if isinstance(elem, dict) and elem.get("type") == "fleur":
+                    nectar_total += elem["nectar"]
+    return nectar_total
+
+assert NCASES % 2 == 0, "NCASES doit être divisible par 2"
+assert MAX_NECTAR % 3 == 0, "MAX_NECTAR doit être divisible par 3"
+assert TIME_OUT % 4 == 0, "TIME_OUT doit être divisible par 4"
