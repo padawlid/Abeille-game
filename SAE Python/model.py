@@ -1,4 +1,14 @@
-# Modèle du jeu
+# MODELE.PY 
+"""
+Module contenant toute la logique du jeu BZZZ.
+
+Ce fichier gère le modèle de données et les règles du jeu :
+- Création du plateau et des éléments (ruches, fleurs, abeilles)
+- Gestion des phases de jeu (ponte, mouvement, butinage, escarmouche)
+- Conditions de victoire et fin de partie
+
+Aucun code graphique ici, uniquement de la logique pure !
+"""
 import random
 
 NCASES = 16 # taille plateau
@@ -22,12 +32,20 @@ FORCE = {
 #----Création des paramètres de bases----
 def creer_plateau():
     """
-    Créer un plateau de dimension NCASES (ici 16x16) avec les listes vides
-    exemple:
-    [[[],[],[],...(0-15)],
-    [...]
-    *15 aussi
-    ]
+    Crée un plateau de jeu vide de taille NCASES x NCASES (16x16).
+    
+    Returns:
+        list: Plateau de jeu, liste 2D où chaque case est une liste vide.
+              Structure : plateau[ligne][colonne] = []
+    
+    Exemple:
+        >>> plateau = creer_plateau()
+        >>> len(plateau)  # 16 lignes
+        16
+        >>> len(plateau[0])  # 16 colonnes par ligne
+        16
+        >>> plateau[0][0]  # Case vide au départ
+        []
     """
     plateau = []
     for _ in range(NCASES):
@@ -39,8 +57,25 @@ def creer_plateau():
 
 def creer_ruche(plateau):
     """
-    Créer les ruches(dict) qu'on va ensuite mettre dans notre plateau
-    Settings donné aux ruches : type, id, nb de nectar, nb d'abeille
+    Crée les 4 ruches et les place dans les coins du plateau.
+    
+    Chaque ruche démarre avec NECTAR_INITIAL points de nectar (10) et 
+    aucune abeille. Les ruches sont automatiquement ajoutées au plateau.
+    
+    Args:
+        plateau (list): Plateau de jeu 16x16 créé par creer_plateau()
+    
+    Returns:
+        list: Liste des 4 ruches [ruche0, ruche1, ruche2, ruche3]
+    
+    Positions des ruches:
+        - Ruche 0 : coin haut-gauche (0, 0)     - Joueur bleu
+        - Ruche 1 : coin haut-droite (0, 15)    - Joueur rouge
+        - Ruche 2 : coin bas-gauche (15, 0)     - Joueur vert
+        - Ruche 3 : coin bas-droite (15, 15)    - Joueur jaune
+    
+    Note:
+        Chaque ruche contient : type, id, nectar initial, liste d'abeilles vide
     """
     ruche0 = {
         "type": "ruche",
@@ -77,10 +112,21 @@ def creer_ruche(plateau):
 
 def creer_fleurs(NFLEURS):
     """
-    Créer des fleurs (dict) avec paramètres:
-    type
-    id
-    nectar et position (nectar ici à 0 et position None pour l'instant on va le changer dans placer_fleurs())
+    Crée NFLEURS fleurs non encore placées sur le plateau.
+    
+    Les fleurs créées n'ont pas encore de position ni de nectar.
+    Elles seront ensuite placées symétriquement par placer_fleurs().
+    
+    Args:
+        NFLEURS (int): Nombre de fleurs à créer (par défaut 4)
+    
+    Returns:
+        list: Liste de dictionnaires représentant les fleurs
+              Chaque fleur : {"type": "fleur", "id": "fleurX", 
+                             "nectar": 0, "position": None}
+    
+    Note:
+        Le nectar sera attribué aléatoirement lors du placement
     """
     fleurs = []
     for i in range(NFLEURS):
@@ -94,10 +140,29 @@ def creer_fleurs(NFLEURS):
 
 def placer_fleurs(plateau, fleurs):
     """
-    Suite à creer_fleurs, on veut maintenant :
-    - Placer les fleurs symétriquement sur le plateau en respectant leur condition (unicité des fleurs + en dehors de zones protegées)
-    - Nectar est attribué entre 1 et MAX_NECTAR 
-    - "Mettre" sur le plateau
+    Place les fleurs symétriquement sur le plateau et leur attribue du nectar.
+    
+    Pour chaque fleur, tire une position aléatoire dans le quart supérieur-gauche
+    du plateau (hors zone protégée 4x4), puis crée 3 copies symétriques.
+    Cela garantit que chaque joueur a la même disposition de fleurs.
+    
+    Args:
+        plateau (list): Plateau de jeu 16x16
+        fleurs (list): Fleurs créées par creer_fleurs()
+    
+    Algorithme:
+        1. Pour chaque fleur, tirer (x, y) aléatoire dans le quart supérieur-gauche
+        2. Vérifier que (x, y) n'est pas dans la zone protégée (0-3, 0-3)
+        3. Calculer les 3 positions symétriques
+        4. Vérifier qu'aucune fleur n'occupe déjà ces 4 positions
+        5. Attribuer un nectar aléatoire entre 1 et MAX_NECTAR (45)
+        6. Placer les 4 fleurs symétriques sur le plateau
+    
+    Symétries:
+        - Position originale : (x, y)
+        - Symétrie verticale : (N-1-x, y)
+        - Symétrie horizontale : (x, N-1-y)
+        - Symétrie centrale : (N-1-x, N-1-y)
     """
     #Placement de la fleur
     N = len(plateau)
@@ -143,8 +208,30 @@ def placer_fleurs(plateau, fleurs):
                 plateau[N-1-x][N-1-y].append(fleur4)
 
 def creer_abeille(type_abeille, position, camp):
-    """  
-    Créer UNE seule abeille (dict) avec ses settings
+    """
+    Crée une nouvelle abeille avec tous ses attributs initiaux.
+    
+    Args:
+        type_abeille (str): "ouvriere", "eclaireuse" ou "bourdon"
+        position (tuple): Position (x, y) sur le plateau
+        camp (str): ID de la ruche propriétaire ("ruche0", "ruche1", etc.)
+    
+    Returns:
+        dict: Dictionnaire représentant l'abeille avec ses attributs :
+              - type : "abeille"
+              - role : type d'abeille (ouvriere/eclaireuse/bourdon)
+              - camp : ruche propriétaire
+              - position : (x, y)
+              - direction : "droite" (par défaut)
+              - nectar : 0 (l'abeille ne transporte rien au départ)
+              - etat : "OK" (active) ou "KO" (assommée)
+              - a_bouge : False (peut bouger ce tour)
+              - tours_ko_restants : 0
+    
+    Caractéristiques par type:
+        - Ouvrière : capacité 12 nectar, force 1, 4 directions
+        - Éclaireuse : capacité 3 nectar, force 1, 8 directions (diagonales)
+        - Bourdon : capacité 1 nectar, force 5, 4 directions
     """
     abeille = {
         "type": "abeille",
@@ -162,15 +249,32 @@ def creer_abeille(type_abeille, position, camp):
 
 def placer_abeille(plateau,abeille):
     """
-    Placer l'abeille crée sur le plateau
+    Place une abeille sur le plateau à sa position.
+    
+    Args:
+        plateau (list): Plateau de jeu
+        abeille (dict): Abeille créée par creer_abeille()
+    
+    Note:
+        L'abeille est ajoutée à la liste des éléments de sa case
     """
     x, y = abeille["position"]
     plateau[x][y].append(abeille)
 
 def case_libre_abeille(plateau, x,y):
-    """  
-    Vérifie uniquement qu'aucune abeille occupe la case
-    retourne TRUE si c bon sinon FALSE
+    """
+    Vérifie qu'aucune abeille n'occupe la case (x, y).
+    
+    Args:
+        plateau (list): Plateau de jeu
+        x (int): Ligne de la case (0-15)
+        y (int): Colonne de la case (0-15)
+    
+    Returns:
+        bool: True si la case est libre (pas d'abeille), False sinon
+    
+    Note:
+        Les fleurs et ruches ne bloquent pas, seules les abeilles comptent
     """
     for element in plateau[x][y]: #parcours les éléments dans la case
         if type(element) == dict and element.get("type") == "abeille": #si case == abeille
@@ -178,10 +282,31 @@ def case_libre_abeille(plateau, x,y):
     return True
 
 def distance_valide(pos1, pos2, distance_max=1, diagonale_autorisee=True):
-    """  
-    Vérifie si la distance entre deux positions est valide
-    - si diagonale_autorisee = True : 8 directions (distance de Chebyshev)
-    - si diagonale_autorisee = False : 4 directions (distance de Manhattan)
+    """
+    Vérifie si la distance entre deux positions est valide pour un déplacement.
+    
+    Args:
+        pos1 (tuple): Position de départ (x1, y1)
+        pos2 (tuple): Position d'arrivée (x2, y2)
+        distance_max (int): Distance maximale autorisée (par défaut 1)
+        diagonale_autorisee (bool): True pour 8 directions, False pour 4
+    
+    Returns:
+        bool: True si le déplacement est autorisé, False sinon
+    
+    Calculs:
+        - Si diagonale autorisée (éclaireuse) : distance de Chebyshev
+          max(|x2-x1|, |y2-y1|) <= distance_max
+        - Sinon (ouvrière/bourdon) : distance de Manhattan
+          |x2-x1| + |y2-y1| <= distance_max
+    
+    Exemples:
+        >>> distance_valide((5, 5), (5, 6), 1, False)  # 1 case à droite
+        True
+        >>> distance_valide((5, 5), (6, 6), 1, False)  # Diagonale interdite
+        False
+        >>> distance_valide((5, 5), (6, 6), 1, True)   # Diagonale OK
+        True
     """
     x1, y1 = pos1 #position 1(x,y)
     x2, y2 = pos2 #position 2(x,y), si la différence est + de 1 c pas bon.
@@ -194,8 +319,21 @@ def distance_valide(pos1, pos2, distance_max=1, diagonale_autorisee=True):
         return abs(x2 - x1) + abs(y2 - y1) <= distance_max
     
 def dans_zone_ruche(position, joueur):
-    """  
-    Vérifie si la position est dans la ruche du joueur
+    """
+    Vérifie si une position est dans la zone protégée d'une ruche (4x4).
+    
+    Args:
+        position (tuple): Position à vérifier (x, y)
+        joueur (int): Numéro du joueur (0, 1, 2 ou 3)
+    
+    Returns:
+        bool: True si la position est dans la zone de la ruche du joueur
+    
+    Zones protégées:
+        - Joueur 0 : x < 4 et y < 4 (haut-gauche)
+        - Joueur 1 : x < 4 et y >= 12 (haut-droite)
+        - Joueur 2 : x >= 12 et y < 4 (bas-gauche)
+        - Joueur 3 : x >= 12 et y >= 12 (bas-droite)
     """
     x, y = position
     if joueur == 0:
@@ -206,11 +344,86 @@ def dans_zone_ruche(position, joueur):
         return x >= 12 and y < 4
     elif joueur == 3:
         return x >= 12 and y >= 12
+
+def calculer_cases_disponibles(abeille, plateau):
+    """
+    Calcule toutes les cases où l'abeille peut se déplacer.
     
+    Args:
+        abeille (dict): Abeille dont on veut connaître les déplacements possibles
+        plateau (list): Plateau de jeu
+    
+    Returns:
+        list: Liste de tuples (x, y) représentant les cases accessibles
+    
+    Vérifications effectuées:
+        1. La case est dans le plateau (0-15)
+        2. La case ne contient pas d'abeille
+        3. La case n'est pas dans une zone ennemie (4x4 des autres ruches)
+    
+    Note:
+        Les éclaireuses ont 8 directions (avec diagonales),
+        les ouvrières et bourdons ont 4 directions (sans diagonales)
+    """
+    x_actuel, y_actuel = abeille["position"]
+    cases_disponibles = []
+    
+    # Directions possibles
+    if abeille["role"] == "eclaireuse":
+        directions = [(-1,-1), (-1,0), (-1,1), (0,-1), (0,1), (1,-1), (1,0), (1,1)]
+    else:
+        directions = [(-1,0), (1,0), (0,-1), (0,1)]
+    
+    joueur_id = int(abeille["camp"][-1]) # ex: "ruche0" -> 0
+    
+    for dx, dy in directions:
+        x_new = x_actuel + dx
+        y_new = y_actuel + dy
+        
+        # 1. Vérifier limites plateau
+        if 0 <= x_new < NCASES and 0 <= y_new < NCASES:
+            
+            # 2. Vérifier case libre 
+            if not case_libre_abeille(plateau, x_new, y_new):
+                continue
+            
+            # 3. Vérifier zones ennemies 
+            zone_ennemie = False
+            for i in range(4):
+                if i != joueur_id:
+                    if dans_zone_ruche((x_new, y_new), i):
+                        zone_ennemie = True
+                        break
+            
+            if not zone_ennemie:
+                cases_disponibles.append((x_new, y_new))
+    
+    return cases_disponibles
+
+# PHASE DE PONTE 
+
 def tenter_ponte(plateau, ruche, type_abeille, position):
-    """ 
-    Tente de pondre une abeille dans une ruche sur le plateau
-    Renvoie (abeille, None) si succès, (None, message d'erreur) sinon
+    """
+    Tente de pondre une abeille dans la ruche.
+    
+    Vérifie que la ruche a assez de nectar (COUT_PONTE = 5) et que
+    la case de la ruche est libre avant de créer l'abeille.
+    
+    Args:
+        plateau (list): Plateau de jeu
+        ruche (dict): Ruche qui veut pondre
+        type_abeille (str): "ouvriere", "eclaireuse" ou "bourdon"
+        position (tuple): Position de ponte (normalement la ruche)
+    
+    Returns:
+        tuple: (abeille, None) si succès, (None, message_erreur) sinon
+    
+    Coût:
+        Retire COUT_PONTE (5) points de nectar de la ruche
+    
+    Erreurs possibles:
+        - "Pas assez de nectar ! (X/5)" si nectar < COUT_PONTE
+        - "Case occupée !" si une abeille est déjà sur la case
     """
     #Vérifier si on a assez de nectar
     if ruche["nectar"] < COUT_PONTE:
@@ -228,9 +441,37 @@ def tenter_ponte(plateau, ruche, type_abeille, position):
     return abeille, None
 
 def tenter_deplacement(plateau, abeille, nouvelle_position, ruches):
-    """  
-    Tente de déplacer l'abeille
-    Renvoie (True, None) si succès, (False, message d'erreur) sinon
+    """
+    Tente de déplacer une abeille vers une nouvelle position.
+    
+    Vérifie la distance, que la case est libre et qu'on ne va pas
+    en zone ennemie. Si l'abeille arrive dans sa zone de ruche,
+    elle dépose automatiquement son nectar.
+    
+    Args:
+        plateau (list): Plateau de jeu
+        abeille (dict): Abeille à déplacer
+        nouvelle_position (tuple): Position de destination (x, y)
+        ruches (list): Liste des 4 ruches (pour déposer le nectar)
+    
+    Returns:
+        tuple: (True, None) si succès, (False, message_erreur) sinon
+    
+    Vérifications:
+        1. Distance valide (1 case max, diagonale selon le type)
+        2. Case libre (pas d'abeille)
+        3. Pas en zone ennemie (zone 4x4 des autres ruches)
+    
+    Effets:
+        - Retire l'abeille de son ancienne case
+        - Place l'abeille sur la nouvelle case
+        - Marque a_bouge = True
+        - Dépose le nectar si arrivée dans sa zone de ruche
+    
+    Erreurs possibles:
+        - "Oula tu vas où là ? C'est trop loin !"
+        - "Mhh.. y'a déjà quelqu'un sur la case"
+        - "T'es un espion ? On est chez l'ennemi !"
     """
     x_old, y_old = abeille["position"]
     x_new, y_new = nouvelle_position
@@ -262,10 +503,26 @@ def tenter_deplacement(plateau, abeille, nouvelle_position, ruches):
 
     return True, None
 
+
+
 #====== BUTINAGE ======
 def fleurs_accessibles(plateau, x,y):
-    """  
-    Retourne les fleurs accessibles pour l'abeille
+    """
+    Retourne toutes les fleurs accessibles depuis une position.
+    
+    Une fleur est accessible si elle est dans les 8 cases adjacentes
+    (diagonales comprises) de la position (x, y).
+    
+    Args:
+        plateau (list): Plateau de jeu
+        x (int): Ligne de la position
+        y (int): Colonne de la position
+    
+    Returns:
+        list: Liste des fleurs accessibles (dictionnaires)
+    
+    Note:
+        Même les fleurs vides (nectar = 0) sont retournées
     """
     fleurs = [] #va contenir TOUS les fleurs accessibles
     for dx in [-1, 0, 1]: #axe verticale
@@ -278,9 +535,24 @@ def fleurs_accessibles(plateau, x,y):
     return fleurs
 
 def gain_nectar(fleur):
-    """  
-    Définir combien de nectar l'abeille prend si elle choisie de butiner
-    Retourne 3,2 ou 1
+    """
+    Calcule combien de nectar une abeille peut prendre sur une fleur.
+    
+    Le gain dépend de la quantité restante sur la fleur :
+    - Fleur pleine (>= 2/3 de MAX_NECTAR) : 3 points
+    - Fleur moyenne (> 1/3 et < 2/3) : 2 points  
+    - Fleur presque vide (<= 1/3) : 1 point
+    
+    Args:
+        fleur (dict): Fleur à butiner
+    
+    Returns:
+        int: Nombre de points de nectar récoltés (1, 2 ou 3)
+    
+    Seuils (avec MAX_NECTAR = 45):
+        - >= 30 nectar : gain de 3
+        - 16-29 nectar : gain de 2
+        - 1-15 nectar : gain de 1
     """
     if fleur["nectar"] >= (2*MAX_NECTAR) / 3: #si la fleur a plus de 2/3 de max_nectar
         return 3
@@ -289,9 +561,30 @@ def gain_nectar(fleur):
     return 1 #si la fleur a moins de 1/3 de max_nectar
 
 def butiner(abeille, fleur):
-    """  
-    Permet à une abeille de récolter du nectar 
-    Le surplus est perdu (vandalisme), mais la guerre des abeilles est ce qu'elle est.
+    """
+    Fait butiner une abeille sur une fleur.
+    
+    L'abeille prend du nectar selon gain_nectar(), mais ne peut pas
+    dépasser sa capacité maximale. Le surplus est perdu (vandalisme).
+    
+    Args:
+        abeille (dict): Abeille qui butine
+        fleur (dict): Fleur à butiner
+    
+    Returns:
+        int: Quantité de nectar effectivement prise par l'abeille
+    
+    Exemple:
+        Une ouvrière (capacité 12) avec déjà 11 nectar butine une
+        grosse fleur (gain de 3) :
+        - Elle prend 1 nectar (car 11 + 1 = 12 max)
+        - Les 2 autres points sont perdus
+        - La fleur perd quand même 3 points (vandalisme)
+    
+    Capacités max:
+        - Bourdon : 1
+        - Éclaireuse : 3
+        - Ouvrière : 12
     """
     #Savoir la capacité max selon le rôle
     max_cap = CAPACITE_NECTAR[abeille["role"]] #un chiffre
@@ -309,10 +602,24 @@ def butiner(abeille, fleur):
     return pris #retourne ce qui a été ajouté à l'abeille pour l'afficher
 
 def deposer_nectar(abeille, ruche):
-    """  
-    Dépose le nectar de l'abeille dans sa ruche si elle y est
     """
-
+    Dépose le nectar d'une abeille dans sa ruche si elle y est.
+    
+    Si l'abeille est dans la zone 4x4 de sa ruche, tout son nectar
+    est transféré dans le stock de la ruche.
+    
+    Args:
+        abeille (dict): Abeille qui veut déposer
+        ruche (dict): Ruche de l'abeille
+    
+    Effet:
+        - Ajoute abeille["nectar"] au stock de la ruche
+        - Remet abeille["nectar"] à 0
+    
+    Note:
+        Cette fonction est appelée automatiquement lors d'un déplacement
+        dans la zone de ruche et à la fin de la phase de butinage
+    """
     x,y = abeille["position"]
     joueur = int(ruche["id"][-1]) #prend le dernier caractère du dictionnaire ruche{i}
     if dans_zone_ruche((x,y), joueur) == True:
@@ -320,9 +627,32 @@ def deposer_nectar(abeille, ruche):
         abeille["nectar"] = 0 
 
 def tenter_butinage(plateau, abeille, ruche):
-    """  
-    Tente de faire un butinage
-    Retourne (True, nectar_pris) si succès, (False, erreur) sinon
+    """
+    Tente de faire butiner une abeille.
+    
+    Vérifie que l'abeille n'a pas bougé ce tour et qu'une fleur
+    est accessible avant de la faire butiner.
+    
+    Args:
+        plateau (list): Plateau de jeu
+        abeille (dict): Abeille qui veut butiner
+        ruche (dict): Ruche de l'abeille (pour déposer le nectar)
+    
+    Returns:
+        tuple: (True, nectar_pris) si succès, (False, message_erreur) sinon
+    
+    Vérifications:
+        1. L'abeille n'a pas bougé (a_bouge = False)
+        2. Au moins une fleur est accessible
+    
+    Effets:
+        - Butine la première fleur accessible
+        - Dépose le nectar si l'abeille est dans sa zone de ruche
+        - Marque a_bouge = True
+    
+    Erreurs possibles:
+        - "Cette abeille a bougé !"
+        - "D'où voyez vous une fleur la ? Perso, j'en vois pas."
     """
     if abeille["a_bouge"] == True:
         return False, "Cette abeille a bougé !"
@@ -341,8 +671,21 @@ def tenter_butinage(plateau, abeille, ruche):
 #=== ESCARMOUCHE ===
 
 def trouver_opposantes(plateau, abeille):
-    """  
-    Détermine s'il y a des ennemies dans son rayon (8 cases adjacentes)
+    """
+    Trouve toutes les abeilles ennemies adjacentes à une abeille.
+    
+    Les opposantes sont les abeilles ennemies (camp différent) dans
+    les 8 cases adjacentes (diagonales comprises) et en état OK.
+    
+    Args:
+        plateau (list): Plateau de jeu
+        abeille (dict): Abeille dont on cherche les opposantes
+    
+    Returns:
+        list: Liste des abeilles ennemies adjacentes (max 8)
+    
+    Note:
+        Les abeilles KO ne comptent pas comme opposantes
     """
     opposantes = [] #stock tous les ennemies
     x, y = abeille["position"]
@@ -361,8 +704,26 @@ def trouver_opposantes(plateau, abeille):
     return opposantes
 
 def calculer_force_effective(abeille, opposantes):
-    """  
-    Calcule la force effective: FE = F(force de l'abeille) / nombre_opposantes
+    """
+    Calcule la force effective d'une abeille en escarmouche.
+    
+    La force effective est la force de l'abeille divisée par le nombre
+    d'opposantes, car elle divise son attaque entre toutes.
+    
+    Args:
+        abeille (dict): Abeille en escarmouche
+        opposantes (list): Liste des abeilles opposantes
+    
+    Returns:
+        float: Force effective (FE = Force / nb_opposantes)
+    
+    Formule:
+        FE = F / K  où F = force, K = nombre d'opposantes
+    
+    Exemples:
+        - Bourdon (force 5) contre 2 ennemies : FE = 5/2 = 2.5
+        - Ouvrière (force 1) contre 1 ennemie : FE = 1/1 = 1
+        - Éclaireuse (force 1) sans ennemie : FE = 1 (force complète)
     """
     force = FORCE[abeille["role"]]
     nb_opposantes = len(opposantes)
@@ -372,9 +733,30 @@ def calculer_force_effective(abeille, opposantes):
     return force/nb_opposantes #division pour calculer FE
 
 def calculer_proba_esquive(abeille, opposantes, plateau):
-    """  
-    Calcul la probabilité d'esquive d'une abeille
-    proba = F / (F + somme des FE ennemies)
+    """
+    Calcule la probabilité qu'une abeille esquive les attaques ennemies.
+    
+    La probabilité dépend de la force de l'abeille et de la somme
+    des forces effectives de ses opposantes.
+    
+    Args:
+        abeille (dict): Abeille qui tente d'esquiver
+        opposantes (list): Liste des abeilles qui l'attaquent
+        plateau (list): Plateau de jeu (pour calculer les FE ennemies)
+    
+    Returns:
+        float: Probabilité d'esquive entre 0.0 et 1.0
+    
+    Formule:
+        P(esquive) = F / (F + somme des FE ennemies)
+        où F = force de l'abeille
+    
+    Exemple:
+        Ouvrière (F=1) attaquée par un bourdon (FE=5/1=5) :
+        P(esquive) = 1 / (1 + 5) = 1/6 ≈ 0.17 (17% de chances)
+    
+    Note:
+        Si force totale = 0 (cas impossible), retourne 1.0 par sécurité
     """
     force = FORCE[abeille["role"]]
     #calcul la somme des FE des OPPOSANTES 
@@ -390,11 +772,31 @@ def calculer_proba_esquive(abeille, opposantes, plateau):
     return force / (force + somme_fe_ennemies)
 
 def phase_escarmouche(plateau, ruche):
-    """  
-    Gère la phase d'escarmouche pour UNE ruche
-    1. Calcule toutes les probas d'esquive
-    2. Tire au hasard pour chaque abeille
-    3. Applique les conséquences
+    """
+    Gère la phase d'escarmouche pour toutes les abeilles d'une ruche.
+    
+    Pour chaque abeille de la ruche qui a des opposantes :
+    1. Calcule sa probabilité d'esquive
+    2. Tire un nombre aléatoire pour savoir si elle esquive
+    3. Si échec : l'abeille perd son nectar et devient KO
+    
+    Args:
+        plateau (list): Plateau de jeu
+        ruche (dict): Ruche dont les abeilles sont en escarmouche
+    
+    Algorithme:
+        1. Pour chaque abeille OK avec des opposantes :
+           - Calculer sa probabilité d'esquive
+           - Tirer aléatoirement (random entre 0 et 1)
+           - Stocker le résultat (réussi/raté)
+        
+        2. Appliquer TOUS les résultats simultanément :
+           - Les abeilles qui ont raté perdent leur nectar
+           - Elles deviennent KO pour TIME_KO tours (5)
+    
+    Note:
+        Les résultats sont appliqués simultanément pour éviter qu'une
+        abeille KO dans la phase affecte les calculs des autres
     """
     resultats = [] #list des resultats de chaque abeille
     
@@ -429,8 +831,19 @@ def phase_escarmouche(plateau, ruche):
             abeille["tours_ko_restants"] = TIME_KO
 #TOUR
 def nouveau_tour(ruches):
-    """  
-    Réinitialise les abeilles pour un nouveau tour
+    """
+    Réinitialise toutes les abeilles pour un nouveau tour.
+    
+    Pour chaque abeille de chaque ruche :
+    - Remet a_bouge à False (peut bouger à nouveau)
+    - Décompte tours_ko_restants pour les abeilles KO
+    - Réveille les abeilles dont le compteur KO atteint 0
+    
+    Args:
+        ruches (list): Liste des 4 ruches du jeu
+    
+    Note:
+        Appelé au début du tour du joueur 0 (quand tous ont joué)
     """
     for ruche in ruches:#chaque ruche
         for abeille in ruche["abeilles"]:#chaque abeille des ruches
@@ -441,8 +854,17 @@ def nouveau_tour(ruches):
                     abeille["etat"] = "OK"
 
 def determiner_gagnant(ruches):
-    """  
-    Retourne la ruche avec le plus de nectar
+    """
+    Retourne la ruche avec le plus de nectar.
+    
+    Args:
+        ruches (list): Liste des 4 ruches
+    
+    Returns:
+        dict: Ruche gagnante (celle avec le plus de nectar)
+    
+    Note:
+        En cas d'égalité, c'est la première ruche trouvée qui gagne
     """
     gagnant = ruches[0] #on stock juste gagnant en tant que 1e ruche
     for ruche in ruches:
@@ -452,13 +874,29 @@ def determiner_gagnant(ruches):
 
 def fin_de_partie(plateau, ruches, tour, nectar_total_initial):
     """
-    Vérifie si la partie est terminée selon les 3 conditions des règles.
-    Retourne (True, gagnant, raison) si fini, (False, None, None) sinon
+    Vérifie si la partie est terminée selon les 3 conditions de victoire.
     
-    Conditions de fin :
-    1. Plus de nectar disponible sur les fleurs et abeilles
-    2. Un joueur a strictement plus de la moitié du nectar initial (blitzkrieg)
-    3. Nombre de tours >= TIME_OUT
+    Args:
+        plateau (list): Plateau de jeu
+        ruches (list): Liste des 4 ruches
+        tour (int): Numéro du tour actuel
+        nectar_total_initial (int): Nectar total au début de la partie
+    
+    Returns:
+        tuple: (True, gagnant, raison) si fini, (False, None, None) sinon
+    
+    Conditions de fin (vérifiées dans cet ordre):
+        1. "timeout" : tour >= TIME_OUT (300 tours)
+        2. "blitzkrieg" : une ruche a > 50% du nectar initial
+        3. "epuisement" : plus de nectar sur fleurs et abeilles
+    
+    Exemples:
+        >>> fin_de_partie(plateau, ruches, 300, 180)
+        (True, ruche_gagnante, "timeout")
+        
+        >>> ruches[0]["nectar"] = 95  # Plus de la moitié de 180
+        >>> fin_de_partie(plateau, ruches, 50, 180)
+        (True, ruches[0], "blitzkrieg")
     """
     # Condition 3 : Timeout
     if tour >= TIME_OUT:
@@ -481,7 +919,19 @@ def fin_de_partie(plateau, ruches, tour, nectar_total_initial):
 
 def calculer_nectar_disponible(plateau, ruches):
     """
-    Calcule le nectar total encore disponible (fleurs + abeilles, pas les ruches)
+    Calcule le nectar total encore en jeu (fleurs + abeilles).
+    
+    Le nectar dans les ruches NE COMPTE PAS (déjà récupéré).
+    
+    Args:
+        plateau (list): Plateau de jeu
+        ruches (list): Liste des 4 ruches
+    
+    Returns:
+        int: Somme du nectar sur les fleurs et sur les abeilles
+    
+    Note:
+        Utilisé pour vérifier la condition de fin "epuisement"
     """
     nectar_total = 0
     
@@ -501,8 +951,17 @@ def calculer_nectar_disponible(plateau, ruches):
 
 def calculer_nectar_total_initial(plateau):
     """
-    Calcule le nectar total au début de la partie (uniquement les fleurs)
-    À appeler juste après placer_fleurs()
+    Calcule le nectar total au début de la partie (seulement les fleurs).
+    
+    Args:
+        plateau (list): Plateau de jeu avec fleurs placées
+    
+    Returns:
+        int: Somme du nectar de toutes les fleurs
+    
+    Note:
+        À appeler juste après placer_fleurs() au début de la partie.
+        Sert pour calculer la victoire "blitzkrieg" (> 50% du total)
     """
     nectar_total = 0
     for x in range(NCASES):
